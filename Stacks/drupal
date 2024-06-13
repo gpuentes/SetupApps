@@ -1,0 +1,60 @@
+version: "3.7"
+services:
+  drupal:
+    image: drupal:10-apache
+    restart: always
+    volumes:
+      - drupal-modules:/var/www/html/modules
+      - drupal-profiles:/var/www/html/profiles
+      - drupal-themes:/var/www/html/themes
+      - drupal-sites:/var/www/html/sites
+    networks:
+      - $nome_rede_interna
+    environment:
+      - DRUPAL_DB_HOST=mysql
+      - DRUPAL_DB_NAME=$nome_banco
+      - DRUPAL_DB_USER=$usuario_banco
+      - DRUPAL_DB_PASSWORD=$senha_banco
+      - DRUPAL_DB_PORT=3306
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.drupal.rule=Host(\`$url_drupal\`)
+        - traefik.http.services.drupal.loadbalancer.server.port=80
+        - traefik.http.routers.drupal.entrypoints=websecure
+        - traefik.http.routers.drupal.tls.certresolver=letsencryptresolver
+        - traefik.http.services.drupal.loadbalancer.passHostHeader=true
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - $nome_rede_interna
+    environment:
+      - MYSQL_ROOT_PASSWORD=$senha_banco
+      - MYSQL_DATABASE=$nome_banco
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+volumes:
+  drupal-modules:
+  drupal-profiles:
+  drupal-themes:
+  drupal-sites:
+  mysql-data:
+
+networks:
+  $nome_rede_interna:
+    external: true
+    name: $nome_rede_interna
